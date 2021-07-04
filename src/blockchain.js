@@ -196,15 +196,15 @@ class Blockchain {
      */
     getStarsByWalletAddress (address) {
         let self = this;
-        let results = [];
+        let stars = [];
         return new Promise((resolve, reject) => {
             // from https://knowledge.udacity.com/questions/282668  
             self.chain.forEach(async(block) =>{
                 let currData = await block.getBData();
-                if(currData.address === address) results.push(currData);
+                if(currData.address === address) stars.push(currData);
             });
 
-            resolve(results);
+            resolve(stars);
         });
     }
 

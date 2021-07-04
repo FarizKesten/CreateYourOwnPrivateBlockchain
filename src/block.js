@@ -46,7 +46,7 @@ constructor(data){
             // remove the whole hash value in order to calculate the
             // new hash for the block
             self.hash = null
-            let newHash = SHA256(JSON.stringify(self.body)).toString();
+            let newHash = SHA256(JSON.stringify(self)).toString();
             // Returning the Block is valid
             if (newHash == auxhash) resolve(true);
             else 
