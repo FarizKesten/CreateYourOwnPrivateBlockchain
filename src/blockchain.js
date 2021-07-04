@@ -24,7 +24,7 @@ class Blockchain {
      */
     constructor() {
         this.chain = [];
-        this.height = -1;
+        this.height = 0;
         this.initializeChain();
     }
 
@@ -34,7 +34,7 @@ class Blockchain {
      * Passing as a data `{data: 'Genesis Block'}`
      */
     async initializeChain() {
-        if( this.height === -1){
+        if( this.height === 0){
             let block = new BlockClass.Block({data: 'Genesis Block'});
             await this._addBlock(block);
         }
@@ -64,7 +64,25 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-           
+            try{
+               // Check for the height to assign the 'previousBlockHash' 
+                if(self.height > 0){
+                    block.previousBlockHash = self.chain[self.height -1 ].hash;
+                }
+                // assign the 'timestamp'
+                block.time = new Date().getTime().toString().slice(0,-3);
+                // assign the correct 'height'
+                block.height = self.height;
+                // create block hash
+                block.hash = SHA256(JSON.stringify(block)).toString();
+                // push the block
+                self.chain.push(block);
+                // if this succeeded, update 'this.height'
+                self.height++;
+                resolve(block)
+            }catch(err){
+                resolve(err);
+            }
         });
     }
 
@@ -78,7 +96,10 @@ class Blockchain {
      */
     requestMessageOwnershipVerification(address) {
         return new Promise((resolve) => {
-            
+            let message = address + ':' + new Date().getTime().toString().slice(0,-3)
+             + ':starRegistry';
+             console.log("requestMEsageOwnershipVerification " + message );
+             resolve(message);
         });
     }
 
@@ -91,7 +112,7 @@ class Blockchain {
      * 1. Get the time from the message sent as a parameter example: `parseInt(message.split(':')[1])`
      * 2. Get the current time: `let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));`
      * 3. Check if the time elapsed is less than 5 minutes
-     * 4. Veify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
+     * 4. Verify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
      * 5. Create the block and add it to the chain
      * 6. Resolve with the block added.
      * @param {*} address 
@@ -101,8 +122,30 @@ class Blockchain {
      */
     submitStar(address, message, signature, star) {
         let self = this;
-        return new Promise(async (resolve, reject) => {
-            
+        return new Promise(async (resolve, reject) => 
+        {
+           let messageTime = parseInt(message.split(':')[1]);
+           let currentTime = parseInt(new Date().getTime().toString().slice(0,-3));
+           if((currentTime - messageTime) > (60*5))
+           {
+                console.log(' error, time limit')
+                reject('error, time limit')
+           }
+           else
+           {
+               if(!(bitcoinMessage.verify(message,address,signature)))
+               {
+                    console.log('verification failed')
+                    reject('verification failed')
+               }
+                else
+                {
+                    let data = {address: address, message: message, signature: signature, star:star};
+                    let block = new BlockClass.Block(data);
+                    await self._addBlock(block);
+                    resolve(block);
+                } 
+           }
         });
     }
 
@@ -115,7 +158,16 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-           
+            let myBlock = self.chain.filter(block => block.hash === hash)[0];
+            if (myBlock)
+            {
+                resolve(myBlock);
+            } 
+            else 
+           {
+                console.log('console: No block with the hash can be found');
+                reject('No block with the hash can be found');
+           } 
         });
     }
 
@@ -137,16 +189,22 @@ class Blockchain {
     }
 
     /**
-     * This method will return a Promise that will resolve with an array of Stars objects existing in the chain 
-     * and are belongs to the owner with the wallet address passed as parameter.
-     * Remember the star should be returned decoded.
+     * This method will return a Promise that will resolve with an array of Stars objects 
+     * existing in the chain and are belongs to the owner with the wallet address passed 
+     * as parameter. Remember the star should be returned decoded.
      * @param {*} address 
      */
     getStarsByWalletAddress (address) {
         let self = this;
-        let stars = [];
+        let results = [];
         return new Promise((resolve, reject) => {
-            
+            // from https://knowledge.udacity.com/questions/282668  
+            self.chain.forEach(async(block) =>{
+                let currData = await block.getBData();
+                if(currData.address === address) results.push(currData);
+            });
+
+            resolve(results);
         });
     }
 
@@ -159,7 +217,32 @@ class Blockchain {
     validateChain() {
         let self = this;
         let errorLog = [];
+
         return new Promise(async (resolve, reject) => {
+            // 1. You should validate each block using `validateBlock`
+            // 2. Each Block should check the with the previousBlockHash
+            // we start with 1 since self.chain[0] is the genesis block
+            l_errors = [];
+            lastHash = null;
+            allErrors = [];
+            for ( let i = 1; i < self.chain.length; i++)
+            {
+                // initialise
+                let currError = null; 
+                currBlock = self.chain[i];
+                // check for validation error
+                if (!currBlock.validate())currError = ":Validation Error ";
+                //check for continuity error
+                if (currBlock.previousBlockHash != lastHash) currError += ": Chain Broken";
+                // update for next loop
+                lastHash = currBlock.hash;
+                // accumulate errors
+                if(currError) allErrors.push(i + " : " + currError);
+            }
+
+            if(allErrors)reject(allErrors);
+            else resolve(allErrors);
+
             
         });
     }
