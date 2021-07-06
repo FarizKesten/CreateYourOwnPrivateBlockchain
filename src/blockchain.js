@@ -167,7 +167,7 @@ class Blockchain {
             else 
            {
                 console.log('No block with the hash can be found');
-                reject(new Error('No block with the hash can be found'));
+                resolve(null);
            } 
         });
     }

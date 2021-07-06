@@ -51,13 +51,13 @@ constructor(data){
             self.hash = auxHash;
             // Returning the Block is valid
             if (newHash == auxHash){
-               console.log("block hash is valid!")
+               console.log("block hash " + auxHash +  " is valid")
                resolve(true); 
             } 
             else 
             {
                 console.log('block hash is not valid! ' + newHash + "!=" + auxHash);
-                reject(false);
+                resolve(false);
             }
         });
     }
@@ -85,7 +85,7 @@ constructor(data){
             }
             else
             {
-                console.log('getBData successfull: ' +  dataDecoded.data);
+                console.log('getBData successfull');
                 resolve(dataDecoded);
             } 
         })
