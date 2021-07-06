@@ -64,25 +64,25 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            try{
-               // Check for the height to assign the 'previousBlockHash' 
-                if(self.height > 0){
-                    block.previousBlockHash = self.chain[self.height -1 ].hash;
-                }
-                // assign the 'timestamp'
-                block.time = new Date().getTime().toString().slice(0,-3);
-                // assign the correct 'height'
-                block.height = self.height;
-                // create block hash
-                block.hash = SHA256(JSON.stringify(block)).toString();
-                // push the block
-                self.chain.push(block);
-                // if this succeeded, update 'this.height'
-                self.height++;
-                resolve(block)
-            }catch(err){
-                resolve(err);
+            // First check if the current chain is valid
+            if(await self.validateChain() != ""){
+                 reject(new Error ("_addBlock: chain validation error"));
             }
+            // Check for the height to assign the 'previousBlockHash' 
+            if(self.height > 0){
+                block.previousBlockHash = self.chain[self.height -1 ].hash;
+            }
+            // assign the 'timestamp'
+            block.time = new Date().getTime().toString().slice(0,-3);
+            // assign the correct 'height'
+            block.height = self.height;
+            // create block hash
+            block.hash = SHA256(JSON.stringify(block)).toString();
+            // push the block
+            self.chain.push(block);
+            // if this succeeded, update 'this.height'
+            self.height++;
+            resolve(block);
         });
     }
 
@@ -98,7 +98,7 @@ class Blockchain {
         return new Promise((resolve) => {
             let message = address + ':' + new Date().getTime().toString().slice(0,-3)
              + ':starRegistry';
-             console.log("requestMEsageOwnershipVerification " + message );
+             console.log("requestMessageOwnershipVerification " + message );
              resolve(message);
         });
     }
@@ -126,17 +126,18 @@ class Blockchain {
         {
            let messageTime = parseInt(message.split(':')[1]);
            let currentTime = parseInt(new Date().getTime().toString().slice(0,-3));
+           // check if 5 minutes limit is crossed
            if((currentTime - messageTime) > (60*5))
            {
-                console.log(' error, time limit')
-                reject('error, time limit')
+                console.log('time limit is reached')
+                reject(new Error('submitStar: time limit is reached'))
            }
            else
            {
                if(!(bitcoinMessage.verify(message,address,signature)))
                {
                     console.log('verification failed')
-                    reject('verification failed')
+                    reject(new Error('submitStar: verification failed'))
                }
                 else
                 {
@@ -165,8 +166,8 @@ class Blockchain {
             } 
             else 
            {
-                console.log('console: No block with the hash can be found');
-                reject('No block with the hash can be found');
+                console.log('No block with the hash can be found');
+                reject(new Error('No block with the hash can be found'));
            } 
         });
     }
@@ -217,33 +218,28 @@ class Blockchain {
     validateChain() {
         let self = this;
         let errorLog = [];
-
-        return new Promise(async (resolve, reject) => {
+        return new Promise( (resolve, reject) => {
             // 1. You should validate each block using `validateBlock`
             // 2. Each Block should check the with the previousBlockHash
-            // we start with 1 since self.chain[0] is the genesis block
-            l_errors = [];
-            lastHash = null;
-            allErrors = [];
-            for ( let i = 1; i < self.chain.length; i++)
-            {
+            let lastHash = null;
+            let allErrors = [];
+            self.chain.forEach( async currBlock =>{
                 // initialise
                 let currError = null; 
-                currBlock = self.chain[i];
                 // check for validation error
-                if (!currBlock.validate())currError = ":Validation Error ";
+                const bBlockIsValid = await currBlock.validate();
+                if (!bBlockIsValid){
+                    currError = ": Block Validation Error ";
+                }
                 //check for continuity error
                 if (currBlock.previousBlockHash != lastHash) currError += ": Chain Broken";
                 // update for next loop
                 lastHash = currBlock.hash;
                 // accumulate errors
                 if(currError) allErrors.push(i + " : " + currError);
-            }
+            });
 
-            if(allErrors)reject(allErrors);
-            else resolve(allErrors);
-
-            
+            resolve(allErrors);
         });
     }
 

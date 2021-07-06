@@ -47,8 +47,13 @@ constructor(data){
             // new hash for the block
             self.hash = null
             let newHash = SHA256(JSON.stringify(self)).toString();
+            // put the has value back
+            self.hash = auxHash;
             // Returning the Block is valid
-            if (newHash == auxhash) resolve(true);
+            if (newHash == auxHash){
+               console.log("block hash is valid!")
+               resolve(true); 
+            } 
             else 
             {
                 console.log('block hash is not valid! ' + newHash + "!=" + auxHash);
@@ -77,7 +82,6 @@ constructor(data){
             if(self.previousBlockHash == null)
             {
                 console.log('Error: This is Genesis block!');
-                reject('Error: This is Genesis block!');
             }
             else
             {
